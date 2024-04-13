@@ -244,6 +244,7 @@ local function joker_emergence(self, context)
                     instant = true
                 })
                 card:set_ability(G.P_CENTERS.m_glass)
+                card:juice_up(0.3, 0.5)
                 return true -- if i dont return true here, the game freezes
             end}))
 
