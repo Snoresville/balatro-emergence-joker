@@ -12,27 +12,35 @@ local MOD_ID = "SnoresvilleEmergence"
 local DECK_NAME = "Metamorphosis Deck"
 local EMERGENCE_BREAK_DENOMINATOR = 8
 
+----------------------------------------------
+-- DATA
 local mod_localization = {
     joker_description = {
-        name = "Emergence",
-        text = {
-            "If a scoring card is not a",
-            "{C:attention}Red Seal Polychrome Steel King of Hearts{},",
-            "partially transform the card towards it,",
-            "{C:green}#1# in #2#{} chance of breaking the card instead." -- #1# and #2# refer to values from loc_def
+        snoresville_emergence = {
+            name = "Emergence",
+            text = {
+                "If a scoring card is not a",
+                "{C:attention}Red Seal Polychrome Steel King of Hearts{},",
+                "partially transform the card towards it,",
+                "{C:green}#1# in #2#{} chance of breaking the card instead." -- #1# and #2# refer to values from loc_def
+            },
         }
     },
-    metamorphosis_deck_description = {
-        name = DECK_NAME,
-        text = {
-            "Start with an",
-            "{C:attention}Eternal{} {C:dark_edition}Negative{} Emergence,",
-            "and a Deck full of",
-            "{C:attention}Ace of Spades{}."
+    deck_description = {
+        metamorphosis_deck = {
+            name = DECK_NAME,
+            text = {
+                "Start with an",
+                "{C:attention}Eternal{} {C:dark_edition}Negative{} Emergence,",
+                "and a Deck full of",
+                "{C:attention}Ace of Spades{}."
+            },
         },
     },
-    upgrade_message = "Emerging!",
-    broken_message = "Broken..."
+    misc = {
+        emergence_upgrade_message = "Emerging!",
+        emergence_broken_message = "Broken..."
+    }
 }
 
 local metamorphosis_value_scaling = {
@@ -190,7 +198,7 @@ local function joker_emergence(self, context)
         for i, card in ipairs(emergenceCards) do
             if not card.destroyed and not card.shattered then
                 card_eval_status_text(card, 'extra', nil, nil, nil, {
-                    message = mod_localization.upgrade_message
+                    message = mod_localization.misc.emergence_upgrade_message
                 })
                 G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.1, func = function()
                     -- super_metamorphosis(card) -- too much power...
@@ -213,14 +221,17 @@ local function joker_emergence(self, context)
         delay(#emergenceCards * 0.15 + 0.5)
 
     -- This phase happens just after scoring but before triggering the joker aftermath
-    elseif context.destroying_card then
+    elseif context.destroying_card and not context.blueprint then
         local card = context.destroying_card
         if not card_is_rshskoh(card) and pseudorandom('177013') < G.GAME.probabilities.normal/EMERGENCE_BREAK_DENOMINATOR then
+            G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
+                card:set_ability(G.P_CENTERS.m_glass)
+                return true -- if i dont return true here, the game freezes
+            end}))
             card_eval_status_text(card, 'extra', nil, nil, nil, {
-                message = mod_localization.broken_message,
+                message = mod_localization.misc.emergence_broken_message,
                 colour = G.C.RED
             })
-            card:set_ability(G.P_CENTERS.m_glass)
 
             -- Returning true here means that the card is DESTROYED!!
             return true
@@ -238,10 +249,6 @@ end
 -- SETUP STOLEN FROM MOREFLUFF, THANKS!!!
 --
 local function init_modded_jokers()
-    local localization = {
-        snoresville_emergence = mod_localization.joker_description
-    }
-
     --[[SMODS.Joker:new(
         name, slug,
         config,
@@ -249,47 +256,53 @@ local function init_modded_jokers()
         rarity, cost, unlocked, discovered, blueprint_compat, eternal_compat
     )
     ]]
-    local jokers = {
+
+    -- DO NOT PUT THIS OUTSIDE OF THIS FUNCTION
+    -- THAT WILL BREAK THE GAME SO HARD ON LOCALIZATION FOR SOME REASON!!
+    local joker_def = {
         snoresville_emergence = SMODS.Joker:new(
-        "Emergence", "",
-        {},
-        {x = 0, y = 0}, "",
-        1,    -- Rarity
-        2,    -- Cost
-        true, -- Unlocked
-        true, -- Discovered
-        true, -- Blueprint Compatible
-        true  -- Eternal Compatible
+            "Emergence",
+            "snoresville_emergence",
+            {},     -- It needs a config???
+            {x = 0, y = 0},
+            mod_localization.joker_description.snoresville_emergence,
+            1,      -- Rarity
+            2,      -- Cost
+            true,   -- Unlocked
+            true,   -- Discovered
+            true,   -- Blueprint Compatible
+            true    -- Eternal Compatible
         ),
     }
 
     -- Order the jokers
-    local joker_order_thing = {}
+    local joker_sorted = {}
 
-    for k, v in pairs(jokers) do
+    for joker_name, joker_data in pairs(joker_def) do
         local j = {}
-        j.name = v.name
-        j.rarity = v.rarity
-        j.slug = k
-        table.insert(joker_order_thing, j)
+        j.name = joker_data.name
+        j.rarity = joker_data.rarity
+        j.slug = joker_name
+        table.insert(joker_sorted, j)
     end
 
-    table.sort(joker_order_thing, function(a, b)
+    table.sort(joker_sorted, function(a, b)
         if a.rarity ~= b.rarity then
             return a.rarity < b.rarity
         end
         return a.name < b.name
     end)
 
-    for i, j in ipairs(joker_order_thing) do
-        local k = j.slug
-        local v = jokers[k]
+    for _, joker_data in ipairs(joker_sorted) do
+        local name = joker_data.slug
+        local v = joker_def[name]
 
-        v.slug = "j_" .. k
-        v.loc_txt = localization[k]
+        v.slug = "j_" .. name
+        v.loc_txt = mod_localization.joker_description[name]
         v.mod = MOD_ID
         v:register()
 
+        -- https://github.com/Steamopollys/Steamodded/wiki/Creating-new-game-objects#creating-jokers
         SMODS.Sprite:new(v.slug, SMODS.findModByID(MOD_ID).path, v.slug..".png", 71, 95, "asset_atli")
         :register()
     end
@@ -333,14 +346,12 @@ function Back.apply_to_run(arg_56_0)
 end
 
 -- https://github.com/Steamopollys/Steamodded/wiki/Create-a-Deck#mod-core-api-deck-documentation
-local metaDeck = SMODS.Deck:new(DECK_NAME,
-    -- ID of deck
-    "snoresvilleMetamorphosis",
-    -- Props / Parameters
-    {snoresvilleMetamorphosisDeck = true},
-    -- Card Back, x and y correspond to the location of the sprite in resources/textures/2x/Enhancers.png
-    {x = 5, y = 1},
-    -- Description
-    mod_localization.metamorphosis_deck_description
+-- do not trust the order of parameters on the wiki...
+local metaDeck = SMODS.Deck:new(
+    DECK_NAME,                                              -- name
+    "snoresvilleMetamorphosis",                             -- slug
+    {snoresvilleMetamorphosisDeck = true},                  -- config
+    {x = 5, y = 1},                                         -- Card Back, x and y correspond to the location of the sprite in resources/textures/2x/Enhancers.png   --
+    mod_localization.deck_description.metamorphosis_deck    -- localization
 )
 metaDeck:register()
