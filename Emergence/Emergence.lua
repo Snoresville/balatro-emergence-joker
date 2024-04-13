@@ -80,7 +80,7 @@ local function get_card_suit_code(card)
 end
 
 -- Goal: Red Seal Polychrome Steel King of Hearts
-local function card_is_rshskoh(card)
+local function card_is_rspskoh(card)
     -- sendDebugMessage("This card...")
     -- sendDebugMessage(card.seal or "no seal")
     -- sendDebugMessage(card.edition and (card.edition.polychrome and "polychrome") or "not polychrome")
@@ -176,7 +176,7 @@ local function joker_emergence(self, context)
 
         for i, card in ipairs(context.scoring_hand) do
             -- Still need this if condition for when blueprint/brainstorm is used with it
-            if not card_is_rshskoh(card) then
+            if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
                 emergenceCards[#emergenceCards + 1] = card
             end
         end
@@ -187,10 +187,19 @@ local function joker_emergence(self, context)
 
         -- Flip the cards over for suspense...
         for i, card in ipairs(emergenceCards) do
-            G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
-                if not card_is_rshskoh(card) then
+            G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.15, func = function()
+                if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
                     play_sound('card1')
                     card:flip()
+                end
+                return true
+            end}))
+            G.E_MANAGER:add_event(Event({trigger = 'before', func = function()
+                if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
+                    card_eval_status_text(card, 'extra', nil, nil, nil, {
+                        message = mod_localization.misc.emergence_upgrade_message,
+                        instant = true
+                    })
                 end
                 return true
             end}))
@@ -199,30 +208,19 @@ local function joker_emergence(self, context)
 
         -- This is where I transform the cards
         for i, card in ipairs(emergenceCards) do
-            if not card.destroyed and not card.shattered then
-                G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.1, func = function()
-                    if not card_is_rshskoh(card) then
-                        card_eval_status_text(card, 'extra', nil, nil, nil, {
-                            message = mod_localization.misc.emergence_upgrade_message,
-                            instant = true
-                        })
-                    end
-                    return true
-                end}))
-                G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.1, func = function()
-                    if not card_is_rshskoh(card) then
-                        -- super_metamorphosis(card) -- too much power...
-                        apply_metamorphosis_upgrade(card)
-                    end
-                    return true
-                end}))
-            end
+            G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.1, func = function()
+                if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
+                    -- super_metamorphosis(card) -- too much power...
+                    apply_metamorphosis_upgrade(card)
+                end
+                return true
+            end}))
         end
 
         -- Unflip it for the fans
         for i, card in ipairs(emergenceCards) do
-            G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
-                if card.facing == 'back' then
+            G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.15, func = function()
+                if not card.destroyed and not card.shattered and card.facing == 'back' then
                     play_sound('tarot2')
                     card:flip()
                     card:juice_up(0.3, 0.3)
@@ -231,12 +229,12 @@ local function joker_emergence(self, context)
             end}))
         end
 
-        delay(#emergenceCards * 0.15 + 0.5)
+        delay(0.5)
 
     -- This phase happens just after scoring but before triggering the joker aftermath
     elseif context.destroying_card and not context.blueprint then
         local card = context.destroying_card
-        if not card_is_rshskoh(card) and pseudorandom('177013') < G.GAME.probabilities.normal/EMERGENCE_BREAK_DENOMINATOR then
+        if not card_is_rspskoh(card) and pseudorandom('177013') < G.GAME.probabilities.normal/EMERGENCE_BREAK_DENOMINATOR then
             G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
                 card_eval_status_text(card, 'extra', nil, nil, nil, {
                     message = mod_localization.misc.emergence_broken_message,
