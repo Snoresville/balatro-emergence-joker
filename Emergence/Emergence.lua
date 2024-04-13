@@ -238,13 +238,14 @@ local function joker_emergence(self, context)
         local card = context.destroying_card
         if not card_is_rshskoh(card) and pseudorandom('177013') < G.GAME.probabilities.normal/EMERGENCE_BREAK_DENOMINATOR then
             G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
+                card_eval_status_text(card, 'extra', nil, nil, nil, {
+                    message = mod_localization.misc.emergence_broken_message,
+                    colour = G.C.RED,
+                    instant = true
+                })
                 card:set_ability(G.P_CENTERS.m_glass)
                 return true -- if i dont return true here, the game freezes
             end}))
-            card_eval_status_text(card, 'extra', nil, nil, nil, {
-                message = mod_localization.misc.emergence_broken_message,
-                colour = G.C.RED
-            })
 
             -- Returning true here means that the card is DESTROYED!!
             return true
