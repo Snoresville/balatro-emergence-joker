@@ -1,6 +1,7 @@
 # Emergence - Custom Joker for Balatro
  https://nhentai.net/g/177013
 
-![Emergence](./preview.png)
+![Emergence Joker](./Emergence/previews/preview_joker.png)
+![Metamorphosis Deck](./Emergence/previews/preview_deck.png)
 
-Price: $2
+Joker Price: $2
