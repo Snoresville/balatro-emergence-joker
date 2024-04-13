@@ -175,6 +175,7 @@ local function joker_emergence(self, context)
         local emergenceCards = {}
 
         for i, card in ipairs(context.scoring_hand) do
+            -- Still need this if condition for when blueprint/brainstorm is used with it
             if not card_is_rshskoh(card) then
                 emergenceCards[#emergenceCards + 1] = card
             end
@@ -187,8 +188,10 @@ local function joker_emergence(self, context)
         -- Flip the cards over for suspense...
         for i, card in ipairs(emergenceCards) do
             G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
-                play_sound('card1')
-                card:flip()
+                if not card_is_rshskoh(card) then
+                    play_sound('card1')
+                    card:flip()
+                end
                 return true
             end}))
         end
@@ -197,12 +200,20 @@ local function joker_emergence(self, context)
         -- This is where I transform the cards
         for i, card in ipairs(emergenceCards) do
             if not card.destroyed and not card.shattered then
-                card_eval_status_text(card, 'extra', nil, nil, nil, {
-                    message = mod_localization.misc.emergence_upgrade_message
-                })
                 G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.1, func = function()
-                    -- super_metamorphosis(card) -- too much power...
-                    apply_metamorphosis_upgrade(card)
+                    if not card_is_rshskoh(card) then
+                        card_eval_status_text(card, 'extra', nil, nil, nil, {
+                            message = mod_localization.misc.emergence_upgrade_message,
+                            instant = true
+                        })
+                    end
+                    return true
+                end}))
+                G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.1, func = function()
+                    if not card_is_rshskoh(card) then
+                        -- super_metamorphosis(card) -- too much power...
+                        apply_metamorphosis_upgrade(card)
+                    end
                     return true
                 end}))
             end
@@ -211,9 +222,11 @@ local function joker_emergence(self, context)
         -- Unflip it for the fans
         for i, card in ipairs(emergenceCards) do
             G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
-                play_sound('tarot2')
-                card:flip()
-                card:juice_up(0.3, 0.3)
+                if card.facing == 'back' then
+                    play_sound('tarot2')
+                    card:flip()
+                    card:juice_up(0.3, 0.3)
+                end
                 return true
             end}))
         end
