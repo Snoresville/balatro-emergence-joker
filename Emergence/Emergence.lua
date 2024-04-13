@@ -8,8 +8,9 @@
 ----------------------------------------------
 ------------MOD CODE -------------------------
 
-local EMERGENCE_BREAK_DENOMINATOR = 8
+local MOD_ID = "SnoresvilleEmergence"
 local DECK_NAME = "Metamorphosis Deck"
+local EMERGENCE_BREAK_DENOMINATOR = 8
 
 local mod_localization = {
     joker_description = {
@@ -25,11 +26,33 @@ local mod_localization = {
         name = DECK_NAME,
         text = {
             "Start with an",
-            "eternal {C:attention}Emergence{},",
+            "{C:attention}Eternal{} {C:dark_edition}Negative{} Emergence,",
             "and a Deck full of",
             "{C:attention}Ace of Spades{}."
         },
-    }
+    },
+    upgrade_message = "Emerging!",
+    broken_message = "Broken..."
+}
+
+local metamorphosis_value_scaling = {
+    ["A"] = '2',
+
+    ["2"] = '5',
+    ["3"] = '5',
+    ["4"] = '5',
+
+    ["5"] = '8',
+    ["6"] = '8',
+    ["7"] = '8',
+
+    ["8"] = 'T',
+    ["9"] = 'T',
+
+    ["T"] = 'J',
+    ["J"] = 'Q',
+    ["Q"] = 'K',
+    ["K"] = 'K',
 }
 
 -------------------------------------------------
@@ -113,17 +136,7 @@ local function apply_metamorphosis_upgrade(card)
     elseif upgrade == "VALUE" then
         local card_suit = get_card_suit_code(card)
         local card_value_current = get_card_value_code(card)
-        local card_upgrade = (card_value_current == 'A' and '2') or
-        (card_value_current == '2' and '3') or
-        (card_value_current == '3' and '4') or
-        (card_value_current == '4' and '5') or
-        (card_value_current == '5' and '6') or
-        (card_value_current == '6' and '7') or
-        (card_value_current == '7' and '8') or
-        (card_value_current == '8' and '9') or
-        (card_value_current == '9' and 'T') or
-        (card_value_current == 'T' and 'J') or
-        (card_value_current == 'J' and 'Q') or 'K'
+        local card_upgrade = metamorphosis_value_scaling[card_value_current] or 'K'
         card:set_base(G.P_CARDS[card_suit.."_"..card_upgrade])
     end
 
@@ -176,7 +189,9 @@ local function joker_emergence(self, context)
         -- This is where I transform the cards
         for i, card in ipairs(emergenceCards) do
             if not card.destroyed and not card.shattered then
-                card_eval_status_text(card, 'extra', nil, nil, nil, {message = "Emerging!"})
+                card_eval_status_text(card, 'extra', nil, nil, nil, {
+                    message = mod_localization.upgrade_message
+                })
                 G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.1, func = function()
                     -- super_metamorphosis(card) -- too much power...
                     apply_metamorphosis_upgrade(card)
@@ -201,10 +216,11 @@ local function joker_emergence(self, context)
     elseif context.destroying_card then
         local card = context.destroying_card
         if not card_is_rshskoh(card) and pseudorandom('177013') < G.GAME.probabilities.normal/EMERGENCE_BREAK_DENOMINATOR then
-            card_eval_status_text(context.destroying_card, 'extra', nil, nil, nil, {
-                message = "Broken...",
+            card_eval_status_text(card, 'extra', nil, nil, nil, {
+                message = mod_localization.broken_message,
                 colour = G.C.RED
             })
+            card:set_ability(G.P_CENTERS.m_glass)
 
             -- Returning true here means that the card is DESTROYED!!
             return true
@@ -221,13 +237,10 @@ end
 --
 -- SETUP STOLEN FROM MOREFLUFF, THANKS!!!
 --
-function SMODS.INIT.SnoresvilleEmergence()
-    sendDebugMessage("Emergence is coming")
-
+local function init_modded_jokers()
     local localization = {
-        snoresville_emergence = mod_localization["joker_description"]
+        snoresville_emergence = mod_localization.joker_description
     }
-    init_localization()
 
     --[[SMODS.Joker:new(
         name, slug,
@@ -274,12 +287,18 @@ function SMODS.INIT.SnoresvilleEmergence()
 
         v.slug = "j_" .. k
         v.loc_txt = localization[k]
-        v.mod = "SnoresvilleEmergence"
+        v.mod = MOD_ID
         v:register()
 
-        SMODS.Sprite:new(v.slug, SMODS.findModByID("SnoresvilleEmergence").path, v.slug..".png", 71, 95, "asset_atli")
+        SMODS.Sprite:new(v.slug, SMODS.findModByID(MOD_ID).path, v.slug..".png", 71, 95, "asset_atli")
         :register()
     end
+end
+
+function SMODS.INIT.SnoresvilleEmergence()
+    sendDebugMessage("Emergence is coming")
+    init_localization()
+    init_modded_jokers()
 
     -- Apply logic
     SMODS.Jokers.j_snoresville_emergence.calculate = joker_emergence
@@ -305,7 +324,7 @@ function Back.apply_to_run(arg_56_0)
                     local value = 'A'
 					card:set_base(G.P_CARDS['S_A'])
 				end
-                add_joker('j_snoresville_emergence', nil, nil, true)
+                add_joker('j_snoresville_emergence', "negative", nil, true)
 
 				return true
 			end
@@ -313,6 +332,15 @@ function Back.apply_to_run(arg_56_0)
 	end
 end
 
--- IDK what the arguments mean, can someone document the API
-local metaDeck = SMODS.Deck:new(DECK_NAME, "snoresvilleMetamorphosis", {snoresvilleMetamorphosisDeck = true}, {x = 0, y = 4}, mod_localization["metamorphosis_deck_description"])
+-- https://github.com/Steamopollys/Steamodded/wiki/Create-a-Deck#mod-core-api-deck-documentation
+local metaDeck = SMODS.Deck:new(DECK_NAME,
+    -- ID of deck
+    "snoresvilleMetamorphosis",
+    -- Props / Parameters
+    {snoresvilleMetamorphosisDeck = true},
+    -- Card Back, x and y correspond to the location of the sprite in resources/textures/2x/Enhancers.png
+    {x = 5, y = 1},
+    -- Description
+    mod_localization.metamorphosis_deck_description
+)
 metaDeck:register()
