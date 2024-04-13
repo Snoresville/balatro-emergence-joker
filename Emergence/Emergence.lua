@@ -20,7 +20,7 @@ local mod_localization = {
             name = "Emergence",
             text = {
                 "If a scoring card is not a",
-                "{C:attention}Red Seal Polychrome Steel King of Hearts{},",
+                "{C:red}Red Seal{} {C:dark_edition}Polychrome{} {C:attention}Steel{} {C:hearts}King of Hearts{},",
                 "partially transform the card towards it,",
                 "{C:green}#1# in #2#{} chance of breaking the card instead." -- #1# and #2# refer to values from loc_def
             },
@@ -31,7 +31,7 @@ local mod_localization = {
             name = DECK_NAME,
             text = {
                 "Start with an",
-                "{C:attention}Eternal{} {C:dark_edition}Negative{} Emergence,",
+                "{C:attention}Eternal{} {C:dark_edition}Negative{} {C:attention}Emergence{},",
                 "and a Deck full of",
                 "{C:attention}Ace of Spades{}."
             },
