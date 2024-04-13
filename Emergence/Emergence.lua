@@ -38,7 +38,7 @@ local mod_localization = {
         },
     },
     misc = {
-        emergence_upgrade_message = "Emerging!",
+        emergence_upgrade_message = "Emerge!",
         emergence_broken_message = "Broken..."
     }
 }
@@ -162,6 +162,88 @@ end
 --------------------------------------------------------
 -- Joker Logic
 --
+
+-- Let's do things that upgrade the card while making it look good
+local function joker_emergence_upgrade_path(context)
+    local emergenceCards = {}
+
+    for i, card in ipairs(context.scoring_hand) do
+        -- Still need this if condition for when blueprint/brainstorm is used with it
+        if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
+            emergenceCards[#emergenceCards + 1] = card
+        end
+    end
+
+    if #emergenceCards == 0 then
+        return
+    end
+
+    -- Flip the cards over for suspense...
+    for i, card in ipairs(emergenceCards) do
+        G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.15, func = function()
+            if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
+                play_sound('card1')
+                card:flip()
+            end
+            return true
+        end}))
+        G.E_MANAGER:add_event(Event({trigger = 'before', func = function()
+            if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
+                card_eval_status_text(card, 'extra', nil, nil, nil, {
+                    message = mod_localization.misc.emergence_upgrade_message,
+                    instant = true
+                })
+            end
+            return true
+        end}))
+    end
+    delay(0.2)
+
+    -- This is where I transform the cards
+    for i, card in ipairs(emergenceCards) do
+        G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.1, func = function()
+            if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
+                -- super_metamorphosis(card) -- too much power...
+                apply_metamorphosis_upgrade(card)
+            end
+            return true
+        end}))
+    end
+
+    -- Unflip it for the fans
+    for i, card in ipairs(emergenceCards) do
+        G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.15, func = function()
+            if not card.destroyed and not card.shattered and card.facing == 'back' then
+                play_sound('tarot2')
+                card:flip()
+                card:juice_up(0.3, 0.3)
+            end
+            return true
+        end}))
+    end
+
+    delay(0.5)
+end
+
+-- Will the card break?
+local function joker_emergence_breaking_path(context)
+    local card = context.destroying_card
+    if not card_is_rspskoh(card) and pseudorandom('177013') < G.GAME.probabilities.normal/EMERGENCE_BREAK_DENOMINATOR then
+        G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
+            card_eval_status_text(card, 'extra', nil, nil, nil, {
+                message = mod_localization.misc.emergence_broken_message,
+                colour = G.C.RED,
+                instant = true
+            })
+            card:set_ability(G.P_CENTERS.m_glass)
+            card:juice_up(0.3, 0.5)
+            return true -- if i dont return true here, the game freezes
+        end}))
+
+        return true
+    end
+end
+
 -- SELF COULD BE ANYTHING!!!!!!!!!!!!!!!!!
 -- CONTEXT COULD BE ANYTHING!!!!!!!!!
 -- UNZIP BALATRO.EXE AND FIND OUT EVERYTHING!!!!!!!!!!!!
@@ -172,83 +254,11 @@ local function joker_emergence(self, context)
     --     sendDebugMessage(v)
     -- end
     if context.cardarea == G.jokers and context.after and context.scoring_hand then
-        local emergenceCards = {}
-
-        for i, card in ipairs(context.scoring_hand) do
-            -- Still need this if condition for when blueprint/brainstorm is used with it
-            if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
-                emergenceCards[#emergenceCards + 1] = card
-            end
-        end
-
-        if #emergenceCards == 0 then
-            return
-        end
-
-        -- Flip the cards over for suspense...
-        for i, card in ipairs(emergenceCards) do
-            G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.15, func = function()
-                if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
-                    play_sound('card1')
-                    card:flip()
-                end
-                return true
-            end}))
-            G.E_MANAGER:add_event(Event({trigger = 'before', func = function()
-                if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
-                    card_eval_status_text(card, 'extra', nil, nil, nil, {
-                        message = mod_localization.misc.emergence_upgrade_message,
-                        instant = true
-                    })
-                end
-                return true
-            end}))
-        end
-        delay(0.2)
-
-        -- This is where I transform the cards
-        for i, card in ipairs(emergenceCards) do
-            G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.1, func = function()
-                if not card.destroyed and not card.shattered and not card_is_rspskoh(card) then
-                    -- super_metamorphosis(card) -- too much power...
-                    apply_metamorphosis_upgrade(card)
-                end
-                return true
-            end}))
-        end
-
-        -- Unflip it for the fans
-        for i, card in ipairs(emergenceCards) do
-            G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.15, func = function()
-                if not card.destroyed and not card.shattered and card.facing == 'back' then
-                    play_sound('tarot2')
-                    card:flip()
-                    card:juice_up(0.3, 0.3)
-                end
-                return true
-            end}))
-        end
-
-        delay(0.5)
-
+        joker_emergence_upgrade_path(context)
     -- This phase happens just after scoring but before triggering the joker aftermath
     elseif context.destroying_card and not context.blueprint then
-        local card = context.destroying_card
-        if not card_is_rspskoh(card) and pseudorandom('177013') < G.GAME.probabilities.normal/EMERGENCE_BREAK_DENOMINATOR then
-            G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.15, func = function()
-                card_eval_status_text(card, 'extra', nil, nil, nil, {
-                    message = mod_localization.misc.emergence_broken_message,
-                    colour = G.C.RED,
-                    instant = true
-                })
-                card:set_ability(G.P_CENTERS.m_glass)
-                card:juice_up(0.3, 0.5)
-                return true -- if i dont return true here, the game freezes
-            end}))
-
-            -- Returning true here means that the card is DESTROYED!!
-            return true
-        end
+        -- This function returning true means that the card is DESTROYED!!
+        return joker_emergence_breaking_path(context)
     end
 end
 
